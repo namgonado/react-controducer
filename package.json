@@ -1,6 +1,6 @@
 {
   "name": "react-controducer",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "The library to create store, reducers, controllers for react app",
   "main": "dist/index.js",
   "files": ["dist", "README.md"],
