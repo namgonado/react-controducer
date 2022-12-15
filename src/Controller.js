@@ -23,20 +23,20 @@ export const ControllerRegistry = {
 }
 
 export function createController(config, controllerCallback) {
-    const storeName = typeof config === "object" ? config.name : config
-    const controllerId = `controller-${storeName}${controllerCount}`
+    const controllerName = typeof config === "object" ? config.name : config
+    const controllerId = `controller-${controllerName}${controllerCount}`
     controllerCount++
 
     const ControllerContext = React.createContext({
-        name: storeName
+        name: controllerName
     })
 
-    ControllerRegistry.assignContext(storeName, ControllerContext)
+    ControllerRegistry.assignContext(controllerName, ControllerContext)
 
     const MemoziredControllerContext = React.memo(function (props) {
 
         ControllerFiber.currentId = controllerId
-        ControllerFiber.currrentControllerName = storeName
+        ControllerFiber.currrentControllerName = controllerName
         const computedValue = controllerCallback({
             ...props
         })
@@ -44,7 +44,7 @@ export function createController(config, controllerCallback) {
         ControllerFiber.currrentControllerName = null
 
         const contextValue = {
-            name: storeName,
+            name: controllerName,
             provider: true,
             controller: computedValue
         }
@@ -70,7 +70,7 @@ export function createController(config, controllerCallback) {
         useEffect(() => {
         }, [])
 
-        const usedStores = getUsedStores(storeName, controllerId)
+        const usedStores = getUsedStores(controllerName, controllerId)
 
         return (
             <MemoziredControllerContext {...props} usedStores={usedStores}></MemoziredControllerContext>

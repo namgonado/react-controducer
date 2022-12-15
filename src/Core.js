@@ -1,24 +1,6 @@
 import _ from "lodash";
 import React, { forwardRef, useContext, useEffect, useMemo, useReducer } from "react";
 
-function rootReducer(rootStore, action) {
-    const { storeName, reducer } = action
-    const currentStore = rootStore?.[storeName]
-
-    const newStore = reducer && reducer(currentStore, action.payload)
-
-    if (currentStore === newStore) {
-        Registry.assignStore(rootStore)
-    } else {
-        Registry.assignStore({
-            ...rootStore,
-            [storeName]: newStore
-        })
-    }
-
-    return Registry.store
-}
-
 const RegistryContext = {
     reducersByStore: null,
     dutiesByStore: {},
@@ -194,12 +176,12 @@ export function getCallOf(store) {
 export function dispatch(action) {
     const { reducersByStore, rootDispatch } = Registry
     let payload
-    if (typeof action == "object") {
-        payload = {
-            storeName: action.storeName,
-            reducer: reducersByStore?.[action.storeName]?.[action.name],
-            payload: action.payload
-        }
+    if (Array.isArray(action)) {
+        payload = new ChainActions(action)
+    } else if (typeof action == "object") {
+        payload = toRootPayload(action)
+    } else {
+        throw new Error("An Action must be of Array of Object type")
     }
 
     if (rootRendering) {
@@ -208,6 +190,77 @@ export function dispatch(action) {
     } else {
         rootDispatch(payload)
     }
+}
+
+function toRootPayload(action) {
+    const { reducersByStore } = Registry
+
+    return {
+        storeName: action.storeName,
+        reducer: reducersByStore?.[action.storeName]?.[action.name],
+        payload: action.payload
+    }
+}
+
+function ChainActions(actions) {
+
+    if (!Array.isArray(actions)) {
+        throw new Error("Chain Actions must be type of Array")
+    }
+
+    const chain = {
+        get actions() {
+            return actions
+        }
+    }
+
+    return Object.setPrototypeOf(chain, ChainActions.prototype)
+}
+
+function rootReducer(rootStore, action) {
+    const { storeName, reducer } = action
+
+    if (action instanceof ChainActions) {
+        rootStore = reduceChainActions(rootStore, action)
+    } else {
+        rootStore = reduceSingleAction(rootStore, action)
+    }
+
+    Registry.assignStore(rootStore)
+    return Registry.store
+}
+
+function reduceChainActions(rootStore, chainActions) {
+
+    for (const actionX of chainActions.actions) {
+        let action = actionX
+        if (actionX instanceof Function) {
+            action = actionX(rootStore)
+        }
+
+        const rootPayload = toRootPayload(action)
+        rootStore = reduceSingleAction(rootStore, rootPayload)
+    }
+
+    return rootStore
+}
+
+function reduceSingleAction(rootStore, action) {
+    const { storeName, reducer } = action
+    const actionStore = rootStore?.[storeName]
+
+    //Reduce the store
+    const newActionStore = reducer && reducer(actionStore, action.payload)
+
+    //Create new rootStore if reducer return new store reference
+    if (newActionStore !== actionStore) {
+        rootStore = {
+            ...rootStore,
+            [storeName]: newActionStore
+        }
+    }
+
+    return rootStore
 }
 
 function buildReducers(configs) {
@@ -263,13 +316,13 @@ export function configureRoot(configs) {
         }, [rootStore])
 
         useEffect(() => {
+            rootRendering = false
             const queue = dispatchQueue.slice()
             dispatchQueue.splice(0, dispatchQueue.length)
-            
+
             for (const dispatchCall of queue) {
                 dispatchCall()
             }
-            rootRendering = false
         }, [rootStore])
 
         useMemo(() => {
