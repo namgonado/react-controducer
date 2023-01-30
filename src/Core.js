@@ -1,11 +1,13 @@
 import _ from "lodash";
 import React, { forwardRef, useContext, useEffect, useMemo, useReducer } from "react";
+import Configuration from "./StoreConfiguration";
 
 const RegistryContext = {
     reducersByStore: null,
     dutiesByStore: {},
     actionsByStore: {},
     rootStore: undefined,
+    configrations: null,
     rootDispatch: null,
     selectorsByControllerId: {},
 }
@@ -40,6 +42,10 @@ const Registry = {
     },
 
     assignStore: function (state) {
+        RegistryContext.rootStore = state
+    },
+
+    assignConfigurations: function (configurations) {
         RegistryContext.rootStore = state
     },
 
@@ -84,7 +90,7 @@ const Registry = {
 function buildStoreActions(configs) {
     const patches = {};
 
-    for (const config of Object.values(configs)) {
+    for (const config of configs.values()) {
 
         const actions = {}
         for (const reducerName in (config.reducers || {})) {
@@ -263,9 +269,9 @@ function reduceSingleAction(rootStore, action) {
     return rootStore
 }
 
-function buildReducers(configs) {
+function buildReducers(configByName) {
     const allReducers = {}
-    for (const config of Object.values(configs)) {
+    for (const config of configByName.values()) {
         allReducers[config.name] = config.reducers
     }
 
@@ -274,11 +280,21 @@ function buildReducers(configs) {
 
 function buildDuties(configs) {
     const dutiesByStore = {}
-    for (const config of Object.values(configs)) {
+    for (const config of configs.values()) {
         dutiesByStore[config.name] = config.duties
     }
 
     return dutiesByStore
+}
+
+function initializeLocalStore(configurationByName) {
+    const store = {}
+    for (const config of configurationByName.values()) {
+        _.set(store, config.path, config.initialState)
+    }
+
+    Registry.assignStore(store)
+    return Registry.store;
 }
 
 let rootRendering = false
@@ -286,28 +302,20 @@ const dispatchQueue = []
 
 export function configureRoot(configs) {
     if (rootContext) {
-        throw new Error("Root controller is unique for the whole app, you might configure root more than one...")
+        throw new Error("Root controller is unique for the whole app, you might have configured root more than one...")
     }
     const RootContext = getRootContext()
 
-    function initializeLocalStore() {
-        const store = {}
-        for (const config of Object.values(configs)) {
-            store[config.name] = config.initialState
-        }
+    const configurationByName = Configuration.parseConfigs(configs)
 
-        Registry.assignStore(store)
-        return Registry.store;
-    }
+    Registry.assignReducers(buildReducers(configurationByName))
 
-    Registry.assignReducers(buildReducers(configs))
-
-    Registry.assignDuties(buildDuties(configs))
+    Registry.assignDuties(buildDuties(configurationByName))
 
     //Build store action creators and copy to Registry
-    Registry.assignActions(buildStoreActions(configs))
+    Registry.assignActions(buildStoreActions(configurationByName))
 
-    const initialStore = initializeLocalStore()
+    const initialStore = initializeLocalStore(configurationByName)
 
     return function (props) {
         const [rootStore, rootDispatch] = useReducer(rootReducer, initialStore);
