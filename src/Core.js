@@ -46,7 +46,7 @@ const Registry = {
     },
 
     assignConfigurations: function (configurations) {
-        RegistryContext.rootStore = state
+        RegistryContext.configurationByName = configurations
     },
 
     assignReducers: function (allReducers) {
@@ -59,6 +59,10 @@ const Registry = {
 
     assignRootDispatch: function (rootDispatch) {
         RegistryContext.rootDispatch = rootDispatch
+    },
+
+    getStoreConfig(storeName) {
+        return RegistryContext.configurationByName?.get(storeName)
     },
 
     getSelectors(controllerId) {
@@ -253,7 +257,8 @@ function reduceChainActions(rootStore, chainActions) {
 
 function reduceSingleAction(rootStore, action) {
     const { storeName, reducer } = action
-    const actionStore = rootStore?.[storeName]
+    const storeConfig = Registry.getStoreConfig(storeName)
+    const actionStore = _.get(rootStore, storeConfig.path)
 
     //Reduce the store
     const newActionStore = reducer && reducer(actionStore, action.payload)
@@ -261,9 +266,10 @@ function reduceSingleAction(rootStore, action) {
     //Create new rootStore if reducer return new store reference
     if (newActionStore !== actionStore) {
         rootStore = {
-            ...rootStore,
-            [storeName]: newActionStore
+            ...rootStore
         }
+
+        _.set(rootStore, storeConfig.path, newActionStore)
     }
 
     return rootStore
@@ -307,6 +313,7 @@ export function configureRoot(configs) {
     const RootContext = getRootContext()
 
     const configurationByName = Configuration.parseConfigs(configs)
+    Registry.assignConfigurations(configurationByName)
 
     Registry.assignReducers(buildReducers(configurationByName))
 
