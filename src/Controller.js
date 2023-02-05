@@ -1,153 +1,180 @@
 import _ from "lodash";
-import Core from "./Core";
-import { ControllerFiber, shallow } from "./Hooks";
-
 import React, { forwardRef, useContext, useEffect, useMemo, useReducer, memo, useId, useState } from "react";
 
-let controllerCount = 0
+function controller({ Core }) {
 
-const ControllerContexts = {}
+    let controllerCount = 0
 
-export const ControllerRegistry = {
-    assignContext(controllerName, context) {
-        if (ControllerContexts[controllerName]) {
-            throw new Error("Controller need to have unique name ${controllerName}...")
+    const ControllerContexts = {}
+
+    const ControllerRegistry = {
+        assignContext(controllerName, context) {
+            if (ControllerContexts[controllerName]) {
+                throw new Error("Controller need to have unique name ${controllerName}...")
+            }
+
+            ControllerContexts[controllerName] = context
+        },
+
+        getContext(name) {
+            return ControllerContexts[name]
         }
-
-        ControllerContexts[controllerName] = context
-    },
-
-    getContext(name) {
-        return ControllerContexts[name]
     }
-}
 
-export function createController(config, controllerCallback) {
-    const controllerName = typeof config === "object" ? config.name : config
-    const controllerId = `controller-${controllerName}${controllerCount}`
-    controllerCount++
+    function createController(config, controllerCallback) {
+        const controllerName = typeof config === "object" ? config.name : config
+        const controllerId = `controller-${controllerName}${controllerCount}`
+        controllerCount++
 
-    const ControllerContext = React.createContext({
-        name: controllerName
-    })
-
-    ControllerRegistry.assignContext(controllerName, ControllerContext)
-
-    const MemoziredControllerContext = React.memo(function (props) {
-
-        ControllerFiber.currentId = controllerId
-        ControllerFiber.currrentControllerName = controllerName
-        const computedValue = controllerCallback({
-            ...props
+        const ControllerContext = React.createContext({
+            name: controllerName
         })
-        ControllerFiber.currentId = null
-        ControllerFiber.currrentControllerName = null
 
-        const contextValue = {
-            name: controllerName,
-            provider: true,
-            controller: computedValue
+        ControllerRegistry.assignContext(controllerName, ControllerContext)
+
+        const MemoziredControllerContext = React.memo(function (props) {
+
+            ControllerFiber.currentId = controllerId
+            ControllerFiber.currrentControllerName = controllerName
+            const computedValue = controllerCallback({
+                ...props
+            })
+            ControllerFiber.currentId = null
+            ControllerFiber.currrentControllerName = null
+
+            const contextValue = {
+                name: controllerName,
+                provider: true,
+                controller: computedValue
+            }
+
+            return (
+                <ControllerContext.Provider value={contextValue}>
+                    {props.children}
+                </ControllerContext.Provider>
+            )
+        }, areEqual)
+
+        function areEqual(prevProps, nextProps) {
+            const { directs: prevDirects, shallows: prevShallows } = prevProps.usedStores
+            const { directs: nextDirects, shallows: nextShallows } = nextProps.usedStores
+
+            return areEqualShallow(prevDirects, nextDirects)
+                && checkShallowsOk(prevShallows, nextShallows)
+                && checkOwnPropsOk(prevProps, nextProps)
+        }
+        function Controller(props) {
+            const root = useContext(Core.getRootContext())
+
+            useEffect(() => {
+            }, [])
+
+            const usedStores = getUsedStores(controllerName, controllerId)
+
+            return (
+                <MemoziredControllerContext {...props} usedStores={usedStores}></MemoziredControllerContext>
+            )
         }
 
-        return (
-            <ControllerContext.Provider value={contextValue}>
-                {props.children}
-            </ControllerContext.Provider>
-        )
-    }, areEqual)
+        Controller.context = ControllerContext
 
-    function areEqual(prevProps, nextProps) {
-        const { directs: prevDirects, shallows: prevShallows } = prevProps.usedStores
-        const { directs: nextDirects, shallows: nextShallows } = nextProps.usedStores
-
-        return areEqualShallow(prevDirects, nextDirects)
-            && checkShallowsOk(prevShallows, nextShallows)
-            && checkOwnPropsOk(prevProps, nextProps)
-    }
-    function Controller(props) {
-        const root = useContext(Core.getRootContext())
-
-        useEffect(() => {
-        }, [])
-
-        const usedStores = getUsedStores(controllerName, controllerId)
-
-        return (
-            <MemoziredControllerContext {...props} usedStores={usedStores}></MemoziredControllerContext>
-        )
+        return Controller
     }
 
-    Controller.context = ControllerContext
+    function withController(Component, Controllers) {
 
-    return Controller
-}
-
-export function withController(Component, Controllers) {
-
-    return forwardRef(function (props, ref) {
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        //var handlers = _.mapValues(Controllers, controller => useContext(controller.context))
-        var handlers = {}
-        for (const [key, controller] of Object.entries(Controllers)) {
+        return forwardRef(function (props, ref) {
             // eslint-disable-next-line react-hooks/rules-of-hooks
-            const contextValue = useContext(controller.context);
-            handlers[key] = contextValue.controller
+            //var handlers = _.mapValues(Controllers, controller => useContext(controller.context))
+            var handlers = {}
+            for (const [key, controller] of Object.entries(Controllers)) {
+                // eslint-disable-next-line react-hooks/rules-of-hooks
+                const contextValue = useContext(controller.context);
+                handlers[key] = contextValue.controller
+            }
+
+            return (
+                <Component {...props} {...handlers} ref={ref} />
+            )
+        })
+    }
+
+    function getUsedStores(storeName, controllerId) {
+        const selectors = Core.Registry.getSelectors(controllerId) || {}
+        let directs = {}
+        let shallows = {}
+        const rootStore = Core.Registry.store
+
+        if (storeName) {
+            directs[storeName] = rootStore[storeName]
         }
 
-        return (
-            <Component {...props} {...handlers} ref={ref} />
+        for (const [key, selector] of Object.entries(selectors)) {
+            const selectedStore = selector(rootStore, shallow)
+
+            if ((selectedStore instanceof shallow) && selectedStore.isShallow) {
+                shallows[key] = selectedStore.value
+            } else {
+                directs[key] = selectedStore
+            }
+        }
+
+        return { directs, shallows }
+    }
+
+    function checkShallowsOk(prevShallows, nextShallows) {
+        if (!prevShallows && !nextShallows) {
+            return true
+        }
+
+
+        return _.every(
+            _.keys(prevShallows),
+            selectorKey => areEqualShallow(prevShallows[selectorKey], nextShallows[selectorKey])
         )
-    })
-}
-
-function getUsedStores(storeName, controllerId) {
-    const selectors = Core.Registry.getSelectors(controllerId) || {}
-    let directs = {}
-    let shallows = {}
-    const rootStore = Core.Registry.store
-
-    if (storeName) {
-        directs[storeName] = rootStore[storeName]
     }
 
-    for (const [key, selector] of Object.entries(selectors)) {
-        const selectedStore = selector(rootStore, shallow)
+    function checkOwnPropsOk(prevProps, nextProps) {
+        const { usedStores: ignore1, ...ownPrevProps } = prevProps
+        const { usedStores: ignore2, ...ownNextProps } = nextProps
 
-        if ((selectedStore instanceof shallow) && selectedStore.isShallow) {
-            shallows[key] = selectedStore.value
-        } else {
-            directs[key] = selectedStore
+        return areEqualShallow(ownPrevProps, ownNextProps)
+    }
+
+    function areEqualShallow(object, other) {
+        const differentKeys = _.xor(_.keys(object), _.keys(other))
+
+        if (!_.isEmpty(differentKeys)) {
+            return false
         }
+
+        return _.every(_.keys(object), key => object[key] === other[key])
     }
 
-    return { directs, shallows }
-}
+    function shallow(value) {
+        const shallowInstance = {
+            get isShallow() { return true },
+            get value() { return value || {} }
+        }
 
-function checkShallowsOk(prevShallows, nextShallows) {
-    if (!prevShallows && !nextShallows) {
-        return true
+        Object.setPrototypeOf(shallowInstance, shallow.prototype)
+        return shallowInstance
     }
 
-
-    return _.every(
-        _.keys(prevShallows),
-        selectorKey => areEqualShallow(prevShallows[selectorKey], nextShallows[selectorKey])
-    )
-}
-
-function checkOwnPropsOk(prevProps, nextProps) {
-    const { usedStores: ignore1, ...ownPrevProps } = prevProps
-    const { usedStores: ignore2, ...ownNextProps } = nextProps
-
-    return areEqualShallow(ownPrevProps, ownNextProps)
-}
-
-function areEqualShallow(object, other) {
-    const differentKeys = _.xor(_.keys(object), _.keys(other))
-
-    if (!_.isEmpty(differentKeys)) {
-        return false
+    const ControllerFiber = {
+        currentId: null,
+        currrentControllerName: null
     }
 
-    return _.every(_.keys(object), key => object[key] === other[key])
+    return {
+        ControllerRegistry,
+        ControllerFiber,
+
+        createController,
+        withController,
+
+        shallow,
+    }
 }
+
+export { controller }
