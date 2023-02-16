@@ -24,6 +24,23 @@ export function parseConfigs(configs) {
     return configByName
 }
 
+function addConfigurations(configByName, configs, rootKey) {
+
+    _.forEach([].concat(configs), (config, index, collection) => {
+        //The config object doesn't contain root, take the key as store name 
+        const storeConfig = config.clone()
+        if (_.isEmpty(storeConfig.root)) {
+            storeConfig.root = rootKey
+        }
+
+        if (configByName.has(storeConfig.name)) {
+            throw new Error(`Duplicate store name: ${storeConfig.name}`)
+        } else {
+            configByName.set(storeConfig.name, storeConfig)
+        }
+    })
+}
+
 function storeConfiguration() {
 
     function createStoreConfig(config, pathToRoot) {
@@ -62,23 +79,6 @@ function storeConfiguration() {
         Object.setPrototypeOf(self, STORE_CONFIG_TYPE.prototype)
 
         return self
-    }
-
-    function addConfigurations(configByName, configs, rootKey) {
-
-        _.forEach([].concat(configs), (config, index, collection) => {
-            //The config object doesn't contain root, take the key as store name 
-            const storeConfig = config.clone()
-            if (_.isEmpty(storeConfig.root)) {
-                storeConfig.root = rootKey
-            }
-
-            if (configByName.has(storeConfig.name)) {
-                throw new Error(`Duplicate store name: ${storeConfig.name}`)
-            } else {
-                configByName.set(storeConfig.name, storeConfig)
-            }
-        })
     }
 
     return {
