@@ -1,5 +1,5 @@
 import _ from "lodash";
-import React, { forwardRef, useContext, useEffect, useMemo, useReducer, memo, useId, useState } from "react";
+import React, { forwardRef, useContext, useEffect, useMemo, useReducer, memo, useId, useState, useRef } from "react";
 
 function controller({ Core }) {
 
@@ -23,9 +23,7 @@ function controller({ Core }) {
 
     function createController(config, controllerCallback) {
         const controllerName = typeof config === "object" ? config.name : config
-        const controllerId = `controller-${controllerName}${controllerCount}`
-        controllerCount++
-
+        let innerCount = 0
         const ControllerContext = React.createContext({
             name: controllerName
         })
@@ -33,14 +31,12 @@ function controller({ Core }) {
         ControllerRegistry.assignContext(controllerName, ControllerContext)
 
         const MemoziredControllerContext = React.memo(function (props) {
-
-            ControllerFiber.currentId = controllerId
-            ControllerFiber.currrentControllerName = controllerName
+            const {instance} = props
+            ControllerFiber.currentId = instance.current.id
             const computedValue = controllerCallback({
                 ...props
             })
             ControllerFiber.currentId = null
-            ControllerFiber.currrentControllerName = null
 
             const contextValue = {
                 name: controllerName,
@@ -65,14 +61,19 @@ function controller({ Core }) {
         }
         function Controller(props) {
             const root = useContext(Core.getRootContext())
+            const controllerInstance = useRef({})
+            if (!controllerInstance.current.id) {
+                controllerInstance.current.id = `controller-${controllerName}${innerCount}`
+                innerCount++
+            }
 
             useEffect(() => {
             }, [])
 
-            const usedStores = getUsedStores(controllerName, controllerId)
+            const usedStores = getUsedStores(controllerName, controllerInstance.current.id)
 
             return (
-                <MemoziredControllerContext {...props} usedStores={usedStores}></MemoziredControllerContext>
+                <MemoziredControllerContext {...props} instance={controllerInstance} usedStores={usedStores}></MemoziredControllerContext>
             )
         }
 
@@ -123,10 +124,9 @@ function controller({ Core }) {
     }
 
     function checkShallowsOk(prevShallows, nextShallows) {
-        if (!prevShallows && !nextShallows) {
-            return true
+        if (_.isEmpty(prevShallows) && !_.isEmpty(nextShallows)) {
+            return false
         }
-
 
         return _.every(
             _.keys(prevShallows),

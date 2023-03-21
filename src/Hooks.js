@@ -79,7 +79,7 @@ function hooks({Core, Controller}) {
      */
      function useDispatch(useName) {
         const actionsByStore = Core.Registry.actionsByStore
-        const defaultStore = ControllerFiber.currrentControllerName
+        const defaultStore = ControllerFiber.currentId
         if (!_.toString(defaultStore)) {
             throw new Error("useDispatch hook must be called inside controller component...")
         }
