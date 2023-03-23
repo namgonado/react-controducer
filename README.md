@@ -23,8 +23,8 @@ npm install --save react-controducer
 ```
 
 ## Document
-- Introduction: https://yoopage.org/universal/voyage/1/planet/1/spaceship/1?view=spaceship
-- Getting started - Quick Start Guide: https://yoopage.org/universal/voyage/1/planet/1/spaceship/3?view=spaceship
-- How to configure multiple nested store: https://yoopage.org/universal/voyage/1/planet/1/spaceship/10?view=spaceship
-- Create Duty, an excutable asynchronous function outside controller: https://yoopage.org/universal/voyage/1/planet/1/spaceship/4?view=spaceship
-- API Reference: https://yoopage.org/universal/voyage/1/planet/2?view=planet
+- Getting started - Quick Start Guide: https://yoopage.org/react-controducer-y1/getting-started-p1/quick-start-guide-s3
+- Installation: https://yoopage.org/react-controducer-y1/getting-started-p1/prerequisite-installation-s2
+- API Reference: https://yoopage.org/react-controducer-y1/api-reference-p2
+- How to configure multiple nested store: https://yoopage.org/react-controducer-y1/getting-started-p1/configure-nested-branch-stores-s10
+- Create Duty, an excutable asynchronous function outside controller: https://yoopage.org/react-controducer-y1/getting-started-p1/bring-more-duties-to-the-code-s4
