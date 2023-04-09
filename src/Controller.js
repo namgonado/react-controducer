@@ -3,22 +3,21 @@ import React, { forwardRef, useContext, useEffect, useMemo, useReducer, memo, us
 
 function controller({ Core }) {
 
-    let controllerCount = 0
-
     const ControllerContexts = {}
 
     const ControllerRegistry = {
         assignContext(controllerName, context) {
-            if (ControllerContexts[controllerName]) {
-                throw new Error("Controller need to have unique name ${controllerName}...")
-            }
-
             ControllerContexts[controllerName] = context
         },
 
-        getContext(name) {
-            return ControllerContexts[name]
+        removeContext(controllerName) {
+            delete ControllerContexts[controllerName]
+        },
+
+        getContext(controllerName) {
+            return ControllerContexts[controllerName]
         }
+
     }
 
     function createController(config, controllerCallback) {
@@ -31,7 +30,7 @@ function controller({ Core }) {
         ControllerRegistry.assignContext(controllerName, ControllerContext)
 
         const MemoziredControllerContext = React.memo(function (props) {
-            const {instance} = props
+            const { instance } = props
             ControllerFiber.currentId = instance.current.id
             const computedValue = controllerCallback({
                 ...props
@@ -60,7 +59,10 @@ function controller({ Core }) {
                 && checkOwnPropsOk(prevProps, nextProps)
         }
         function Controller(props) {
+            //This code does nothing but listening the change from rootContext
             const root = useContext(Core.getRootContext())
+
+            //And tracking instance for each time controller component are mounted
             const controllerInstance = useRef({})
             if (!controllerInstance.current.id) {
                 controllerInstance.current.id = `controller-${controllerName}${innerCount}`
@@ -68,7 +70,11 @@ function controller({ Core }) {
             }
 
             useEffect(() => {
-            }, [])
+                const currentContext = ControllerRegistry.getContext(controllerName)
+                if (ControllerContext !== currentContext) {
+                    throw new Error(`Controller need to have unique name ${controllerName}. You might have created controllers with duplicate name`)
+                }
+            })
 
             const usedStores = getUsedStores(controllerName, controllerInstance.current.id)
 
@@ -77,6 +83,7 @@ function controller({ Core }) {
             )
         }
 
+        //For legacy withControler function
         Controller.context = ControllerContext
 
         return Controller

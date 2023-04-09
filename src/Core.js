@@ -4,7 +4,7 @@ import { parseConfigs } from "./StoreConfiguration"
 
 function core() {
 
-    const RegistryContext = {
+    const emptyContext = {
         reducersByStore: null,
         dutiesByStore: {},
         actionsByStore: {},
@@ -13,6 +13,7 @@ function core() {
         rootDispatch: null,
         selectorsByControllerId: {},
     }
+    let RegistryContext = _.cloneDeep(emptyContext)
 
     const Registry = {
 
@@ -72,6 +73,13 @@ function core() {
             return _.clone(selectorsByControllerId[controllerId])
         },
 
+        getSelector(controllerId, selectorKey) {
+            const selectorsByControllerId = RegistryContext.selectorsByControllerId
+            const selectors = selectorsByControllerId?.[controllerId]
+
+            return selectors?.[selectorKey]
+        },
+
         get store() {
             return RegistryContext.rootStore
         },
@@ -90,6 +98,10 @@ function core() {
 
         get rootDispatch() {
             return RegistryContext.rootDispatch
+        },
+
+        reset() {
+            RegistryContext.rootStore = undefined
         }
     }
 
@@ -305,13 +317,20 @@ function core() {
         return Registry.store;
     }
 
+    function flushDispatchQueue(dispatchQueue) {
+        const queue = dispatchQueue.slice()
+        dispatchQueue.splice(0, dispatchQueue.length)
+
+        for (const dispatchCall of queue) {
+            dispatchCall()
+        }
+    }
+
     let rootRendering = false
     const dispatchQueue = []
+    const rootRef = {}
 
     function configureRoot(configs) {
-        if (rootContext) {
-            throw new Error("Root controller is unique for the whole app, you might have configured root more than one...")
-        }
         const RootContext = getRootContext()
 
         const configurationByName = parseConfigs(configs)
@@ -326,21 +345,32 @@ function core() {
 
         const initialStore = initializeLocalStore(configurationByName)
 
-        return function (props) {
+        const rootController = function (props) {
             const [rootStore, rootDispatch] = useReducer(rootReducer, initialStore);
             useMemo(() => {
+                if (rootRef.current !== rootController) {
+                    throw new Error("Root controller is unique for the whole app, you might have configured root more than one...")
+                }
+                flushDispatchQueue(dispatchQueue)
                 rootRendering = true
             }, [rootStore])
 
             useEffect(() => {
                 rootRendering = false
-                const queue = dispatchQueue.slice()
-                dispatchQueue.splice(0, dispatchQueue.length)
-
-                for (const dispatchCall of queue) {
-                    dispatchCall()
-                }
+                
+                flushDispatchQueue(dispatchQueue)
             }, [rootStore])
+
+            //Clean up on unmount
+            useEffect(() => {
+
+                return () => {
+                    rootRendering = false
+                    dispatchQueue.length = 0
+
+                    Registry.reset()
+                }
+            }, [])
 
             useMemo(() => {
                 Registry.assignRootDispatch(rootDispatch)
@@ -354,6 +384,10 @@ function core() {
                 </>
             )
         }
+
+        rootRef.current = rootController
+
+        return rootController
     }
 
     let rootContext = null;

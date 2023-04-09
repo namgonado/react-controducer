@@ -12,7 +12,7 @@ function hooks({Core, Controller}) {
             throw new Error("useStore hook must be called insde controller component...")
         }
 
-        useEffect(() => {
+        const selectorKey = useMemo(() => {
             let selectorKey
 
             if (typeof selector === "function") {
@@ -23,12 +23,17 @@ function hooks({Core, Controller}) {
                 })
 
                 if (foundDuplicate) {
-                    throw new Error(`Duplicate selector found ${foundKey}. You might call the same selector two times in the same component, otherwise there maybe something else wrong...`)
+                    throw new Error(`Duplicate selector found ${foundKey}. You might hook the same selector two times in a controller, otherwise there maybe something else wrong...`)
                 }
 
                 selectorKey = Core.Registry.assignSelector(constrollerId, selector)
             }
 
+            return selectorKey
+        }, [])
+
+        useEffect(() => {
+            //Remove registed selectors when the controller unmount
             return () => {
                 if (selectorKey) {
                     Core.Registry.removeSelector(constrollerId, selectorKey)
@@ -36,10 +41,12 @@ function hooks({Core, Controller}) {
             }
         }, [])
 
+        //Retrieve selector from cache and execute on rootStore
         let selectedStore
-        if (typeof selector === "function") {
+        const cachedSelector = Core.Registry.getSelector(constrollerId, selectorKey)
+        if (typeof cachedSelector === "function") {
             const rootStore = Core.Registry.store
-            selectedStore = selector(rootStore, shallow)
+            selectedStore = cachedSelector(rootStore, shallow)
 
             if ((selectedStore instanceof shallow) && selectedStore.isShallow) {
                 selectedStore = selectedStore.value

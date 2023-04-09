@@ -5,12 +5,16 @@ A react library to help front-end developers build React application with **stor
 ## Contact & Questions
 Owner: <namgonado@gmail.com>
 ## Features
-
 - Define configurable stores across application
 - Define Reducers and Actions set for each store
 - Define Controllers that can "consume" one or many stores and processing data for React components group
 - Define Duty, an independent executable unit that can be called from anywhere in the application
 - Built-in Hooks for store, controllers, duties
+## Version Changes
+### 1.2.0
+- Fix bug Nextjs fast refresh and React strict mode cause unique controller error
+### 1.1.4
+- Allow multiple instance for controller
 ## Installation
 The library require React ^17.0.0 or later, lodash 4 or later versions to run
 ```shell

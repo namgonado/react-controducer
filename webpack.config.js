@@ -53,7 +53,7 @@ module.exports = {
 					options: {
 						presets: [
 							['@babel/preset-env', {
-								"targets": "defaults"
+								"targets": "node 12"
 							}],
 							'@babel/preset-react'
 						]
