@@ -41,45 +41,45 @@ function addConfigurations(configByName, configs, rootKey) {
     })
 }
 
-function storeConfiguration() {
+function createStoreConfig(config, pathToRoot) {
 
-    function createStoreConfig(config, pathToRoot) {
-
-        if (!config.name) {
-            throw new Error("Store configuration must contain name attribute")
-        }
-
-        let root = !_.isEmpty(config.path) ? config.path : null;
-
-        const self = {
-            ...config,
-            get path() {
-                //Path = name + external pathToRoot
-                let path = _.isEmpty(this.root) ? [] : [].concat(this.root)
-
-                if (pathToRoot) {
-                    path = path.concat(pathToRoot)
-                }
-
-                return path
-            },
-            get root() {
-                return root
-            },
-            set root(newRoot) {
-                root = newRoot
-            },
-            clone() {
-                const clone = createStoreConfig(config, pathToRoot)
-                clone.root = _.cloneDeep(this.root)
-                return clone
-            }
-        }
-
-        Object.setPrototypeOf(self, STORE_CONFIG_TYPE.prototype)
-
-        return self
+    if (!config.name) {
+        throw new Error("Store configuration must contain name attribute")
     }
+
+    let root = !_.isEmpty(config.path) ? config.path : null;
+
+    const self = {
+        ...config,
+        get path() {
+            //Path = name + external pathToRoot
+            let path = _.isEmpty(this.root) ? [] : [].concat(this.root)
+
+            if (pathToRoot) {
+                path = path.concat(pathToRoot)
+            }
+
+            return path
+        },
+        get root() {
+            return root
+        },
+        set root(newRoot) {
+            root = newRoot
+        },
+        clone() {
+            const clone = createStoreConfig(config, pathToRoot)
+            clone.root = _.cloneDeep(this.root)
+            return clone
+        }
+    }
+
+    Object.setPrototypeOf(self, STORE_CONFIG_TYPE.prototype)
+
+    return self
+}
+
+function storeConfiguration() {
 
     return {
         createStoreConfig
