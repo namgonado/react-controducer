@@ -197,25 +197,6 @@ function core() {
         }
     }
 
-    function dispatch(action) {
-        const { reducersByStore, rootDispatch } = Registry
-        let payload
-        if (Array.isArray(action)) {
-            payload = new ChainActions(action)
-        } else if (typeof action == "object") {
-            payload = toRootPayload(action)
-        } else {
-            throw new Error("An Action must be of Array of Object type")
-        }
-
-        if (rootRendering) {
-            const dispatchLater = () => rootDispatch(payload)
-            dispatchQueue.push(dispatchLater)
-        } else {
-            rootDispatch(payload)
-        }
-    }
-
     function toRootPayload(action) {
         const { reducersByStore } = Registry
 
@@ -323,6 +304,27 @@ function core() {
 
         for (const dispatchCall of queue) {
             dispatchCall()
+        }
+    }
+
+    function dispatch(action) {
+        const { reducersByStore, rootDispatch } = Registry
+        let payload
+        if (Array.isArray(action)) {
+            payload = new ChainActions(action)
+        } else if (typeof action == "object") {
+            payload = toRootPayload(action)
+        } else {
+            throw new Error("An Action must be of Array of Object type")
+        }
+
+        if (rootRendering) {
+            const dispatchLater = () => rootDispatch(payload)
+            dispatchLater.trace = _.cloneDeep(action)
+            dispatchLater.payload = _.cloneDeep(payload)
+            dispatchQueue.push(dispatchLater)
+        } else {
+            rootDispatch(payload)
         }
     }
 

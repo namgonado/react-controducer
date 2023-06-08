@@ -63,7 +63,8 @@ function controller({ Core }) {
             const root = useContext(Core.getRootContext())
 
             //And tracking instance for each time controller component are mounted
-            const controllerInstance = useRef({})
+            const tmp = {}
+            const controllerInstance = useRef(tmp)
             if (!controllerInstance.current.id) {
                 controllerInstance.current.id = `controller-${controllerName}${innerCount}`
                 innerCount++

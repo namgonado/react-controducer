@@ -1,38 +1,39 @@
 import _ from "lodash"
-import { useContext, useEffect, useMemo, useState } from "react"
+import { useContext, useEffect, useMemo, useReducer, useRef, useState } from "react"
 
 function hooks({Core, Controller}) {
 
     const { dispatch, getCallOf } = Core
     const { ControllerRegistry, shallow, ControllerFiber } = Controller
 
+    var count = 0
     function useStore(selector) {
+        //In case of React Strict mode, re-run twice
+        const selectorRef = useRef(selector)
+
         const constrollerId = ControllerFiber.currentId
         if (!_.toString(constrollerId)) {
             throw new Error("useStore hook must be called insde controller component...")
         }
 
-        const selectorKey = useMemo(() => {
+        const stricModeCount = "strict mode " + count++
+        useEffect(() => {
             let selectorKey
-
-            if (typeof selector === "function") {
+            const currentSelector = selectorRef.current
+            if (typeof currentSelector === "function") {
                 let foundKey
                 const foundDuplicate = _.some(_.values(Core.Registry.getSelectors(constrollerId)), (func, key) => {
                     foundKey = key
-                    return typeof func === "function" && func === selector
+                    return typeof func === "function" && func === currentSelector
                 })
 
                 if (foundDuplicate) {
-                    throw new Error(`Duplicate selector found ${foundKey}. You might hook the same selector two times in a controller, otherwise there maybe something else wrong...`)
+                    throw new Error(`Duplicate selector found ${foundKey}. You might call the same selector two times in the same component, otherwise there maybe something else wrong...`)
                 }
 
-                selectorKey = Core.Registry.assignSelector(constrollerId, selector)
+                selectorKey = Core.Registry.assignSelector(constrollerId, currentSelector)
             }
 
-            return selectorKey
-        }, [])
-
-        useEffect(() => {
             //Remove registed selectors when the controller unmount
             return () => {
                 if (selectorKey) {
@@ -43,7 +44,7 @@ function hooks({Core, Controller}) {
 
         //Retrieve selector from cache and execute on rootStore
         let selectedStore
-        const cachedSelector = Core.Registry.getSelector(constrollerId, selectorKey)
+        const cachedSelector = selectorRef.current
         if (typeof cachedSelector === "function") {
             const rootStore = Core.Registry.store
             selectedStore = cachedSelector(rootStore, shallow)

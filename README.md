@@ -11,7 +11,10 @@ Owner: <namgonado@gmail.com>
 - Define Duty, an independent executable unit that can be called from anywhere in the application
 - Built-in Hooks for store, controllers, duties
 ## Version Changes
-### 1.2.0
+
+### 1.2.0-beta.3
+- Fix bug useStore returning undefined in React strict mode
+### 1.2.0-beta.2
 - Fix bug Nextjs fast refresh and React strict mode cause unique controller error
 - Fix bug cannot configure root with plain object configuration for backward compatibility
 ### 1.1.4
