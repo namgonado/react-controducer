@@ -13,6 +13,7 @@ Owner: <namgonado@gmail.com>
 ## Version Changes
 ### 1.2.0
 - Fix bug Nextjs fast refresh and React strict mode cause unique controller error
+- Fix bug cannot configure root with plain object configuration for backward compatibility
 ### 1.1.4
 - Allow multiple instance for controller
 ## Installation
